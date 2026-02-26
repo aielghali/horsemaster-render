@@ -41,7 +41,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "6.6",
+    "version": "6.7",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
@@ -1093,7 +1093,7 @@ def render_html_interface():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐎 HorseMaster AI v6.5</title>
+    <title>🐎 HorseMaster AI v6.7</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1180,7 +1180,7 @@ def render_html_interface():
     <div class="container">
         <div class="header">
             <h1>🐎 HorseMaster AI</h1>
-            <div class="version">v6.5 - Complete System</div>
+            <div class="version">v6.7 - Fixed Error Handling</div>
             <p style="color: #888; margin-top: 10px;">البريد الإلكتروني مُعد وجاهز ✓</p>
         </div>
         
@@ -1342,7 +1342,7 @@ def render_html_interface():
         </div>
         
         <div class="footer">
-            <p>© 2026 Elghali AI - HorseMaster AI v6.5</p>
+            <p>© 2026 Elghali AI - HorseMaster AI v6.7</p>
             <p style="font-size: 0.8rem; margin-top: 5px;">⚠️ هذه الترشيحات للترفيه فقط</p>
         </div>
     </div>
@@ -1351,16 +1351,48 @@ def render_html_interface():
         let tracksData = {};
         let currentPredictions = null;
         let uploadedPdf = null;
-        
+
         document.getElementById('date').valueAsDate = new Date();
-        
+
+        // Helper function for fetch with retry and error handling
+        async function fetchWithRetry(url, options = {}, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url, options);
+                    if (!res.ok) {
+                        throw new Error('HTTP ' + res.status);
+                    }
+                    const text = await res.text();
+                    if (!text || text.trim() === '') {
+                        throw new Error('Empty response');
+                    }
+                    return JSON.parse(text);
+                } catch(e) {
+                    console.log('Attempt ' + (i + 1) + ' failed:', e.message);
+                    if (i === retries - 1) throw e;
+                    await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds before retry
+                }
+            }
+        }
+
         async function loadTracks() {
-            const res = await fetch('/api/tracks');
-            const data = await res.json();
-            tracksData = data.tracks;
-            updateTracks();
-            updatePdfTracks();
-            updateLiveTracks();
+            try {
+                const data = await fetchWithRetry('/api/tracks');
+                tracksData = data.tracks;
+                updateTracks();
+                updatePdfTracks();
+                updateLiveTracks();
+            } catch(e) {
+                console.error('Failed to load tracks:', e);
+                // Use default tracks if loading fails
+                tracksData = {
+                    "UAE": [{"id":"meydan","name":"Meydan Racecourse","city":"Dubai"}],
+                    "UK": [{"id":"wolverhampton","name":"Wolverhampton","city":"Wolverhampton"}]
+                };
+                updateTracks();
+                updatePdfTracks();
+                updateLiveTracks();
+            }
         }
         
         function updateTracks() {
@@ -1397,21 +1429,20 @@ def render_html_interface():
             const country = document.getElementById('country').value;
             const trackId = document.getElementById('track').value;
             const date = document.getElementById('date').value;
-            
+
             document.getElementById('loading').style.display = 'block';
             document.getElementById('results').style.display = 'none';
-            
+
             try {
-                const res = await fetch('/api/predict', {
+                const data = await fetchWithRetry('/api/predict', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({country, track_id: trackId, date})
                 });
-                const data = await res.json();
                 currentPredictions = data;
                 displayResults(data);
             } catch(e) {
-                alert('خطأ: ' + e.message);
+                alert('⚠️ الخادم يستيقظ من السكون، يرجى المحاولة مرة أخرى...\n\nالخطأ: ' + e.message);
             }
             document.getElementById('loading').style.display = 'none';
         }
@@ -1474,15 +1505,15 @@ def render_html_interface():
                 alert('يرجى رفع ملف PDF أولاً');
                 return;
             }
-            
+
             const country = document.getElementById('pdfCountry').value;
             const trackId = document.getElementById('pdfTrack').value;
             const date = document.getElementById('date').value;
-            
+
             document.getElementById('loading').style.display = 'block';
-            
+
             try {
-                const res = await fetch('/api/analyze-pdf', {
+                const data = await fetchWithRetry('/api/analyze-pdf', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1491,12 +1522,11 @@ def render_html_interface():
                         country, track_id: trackId, date
                     })
                 });
-                const data = await res.json();
                 currentPredictions = data;
                 displayResults(data);
                 showTab('predictions');
             } catch(e) {
-                alert('خطأ: ' + e.message);
+                alert('⚠️ الخادم يستيقظ من السكون، يرجى المحاولة مرة أخرى...\n\nالخطأ: ' + e.message);
             }
             document.getElementById('loading').style.display = 'none';
         }
@@ -1504,14 +1534,13 @@ def render_html_interface():
         async function getLiveStream() {
             const country = document.getElementById('liveCountry').value;
             const trackId = document.getElementById('liveTrack').value;
-            
+
             try {
-                const res = await fetch('/api/live-streams');
-                const data = await res.json();
+                const data = await fetchWithRetry('/api/live-streams');
                 const stream = data.live_streams[country]?.[trackId] || data.live_streams[country]?.['all_tracks'];
-                
+
                 if (stream) {
-                    document.getElementById('liveStreamLinks').innerHTML = 
+                    document.getElementById('liveStreamLinks').innerHTML =
                         '<div class="stream-links" style="margin-top:20px;">' +
                         '<a href="'+stream.url+'" target="_blank" class="stream-link">🎬 البث الرسمي</a>' +
                         (stream.backup ? '<a href="'+stream.backup+'" target="_blank" class="stream-link" style="background:#6c757d">📡 بديل</a>' : '') +
@@ -1521,31 +1550,29 @@ def render_html_interface():
                     document.getElementById('liveStreamLinks').innerHTML = '<p style="color:#888; text-align:center;">لا يوجد بث متاح</p>';
                 }
             } catch(e) {
-                alert('خطأ: ' + e.message);
+                document.getElementById('liveStreamLinks').innerHTML = '<p style="color:#888; text-align:center;">⚠️ الخادم يستيقظ، يرجى المحاولة مرة أخرى</p>';
             }
         }
-        
+
         async function fetchLearningStats() {
             try {
-                const res = await fetch('/api/learning-stats');
-                const data = await res.json();
+                const data = await fetchWithRetry('/api/learning-stats');
                 const acc = data.accuracy;
-                
-                document.getElementById('learningStats').innerHTML = 
+
+                document.getElementById('learningStats').innerHTML =
                     '<div class="stat-row"><span>إجمالي الترشيحات:</span><span>' + acc.total_predictions + '</span></div>' +
                     '<div class="stat-row"><span>الترشيحات الصحيحة:</span><span>' + acc.correct_predictions + '</span></div>' +
                     '<div class="stat-row"><span>دقة الفوز:</span><span>' + (acc.win_accuracy || 0).toFixed(1) + '%</span></div>' +
                     '<div class="stat-row"><span>دقة المركز:</span><span>' + (acc.place_accuracy || 0).toFixed(1) + '%</span></div>';
             } catch(e) {
-                document.getElementById('learningStats').innerHTML = '<p style="color:#888;">لا توجد بيانات كافية</p>';
+                document.getElementById('learningStats').innerHTML = '<p style="color:#888;">جاري التحميل...</p>';
             }
         }
-        
+
         async function fetchSources() {
             try {
-                const res = await fetch('/api/sources');
-                const data = await res.json();
-                
+                const data = await fetchWithRetry('/api/sources');
+
                 let html = '';
                 for (const [country, tracks] of Object.entries(data.sources)) {
                     html += '<h4 style="color: #ffd700; margin-top: 15px;">' + country + '</h4>';
@@ -1555,10 +1582,10 @@ def render_html_interface():
                 }
                 document.getElementById('sourcesList').innerHTML = html;
             } catch(e) {
-                document.getElementById('sourcesList').innerHTML = '<p style="color:#888;">خطأ في التحميل</p>';
+                document.getElementById('sourcesList').innerHTML = '<p style="color:#888;">جاري التحميل...</p>';
             }
         }
-        
+
         async function sendEmail() {
             let email = document.getElementById('email').value;
             if (!email) {
@@ -1568,22 +1595,21 @@ def render_html_interface():
                 alert('لا توجد ترشيحات للإرسال');
                 return;
             }
-            
+
             try {
-                const res = await fetch('/api/send-email', {
+                const data = await fetchWithRetry('/api/send-email', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({email, predictions: currentPredictions})
                 });
-                const data = await res.json();
-                
+
                 if (data.success) {
                     alert('✅ تم إرسال البريد بنجاح إلى: ' + email);
                 } else {
                     alert('⚠️ ' + data.message);
                 }
             } catch(e) {
-                alert('خطأ: ' + e.message);
+                alert('⚠️ الخادم يستيقظ من السكون، يرجى المحاولة مرة أخرى...\n\nالخطأ: ' + e.message);
             }
         }
         
