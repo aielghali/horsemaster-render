@@ -50,7 +50,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "9.0",
+    "version": "9.0.1",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
