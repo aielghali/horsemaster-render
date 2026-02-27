@@ -49,7 +49,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "9.1.0",
+    "version": "9.1.1",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
@@ -628,8 +628,12 @@ def generate_predictions_from_real_data(races: list, num_predictions: int) -> li
         prediction = {
             'race_number': race.get('race_number', 0),
             'race_name': race.get('race_name', ''),
+            'name': race.get('race_name', f"الشوط {race.get('race_number', 0)}"),
             'horses_count': len(active_horses),
-            'predictions': [{
+            'time': '-',
+            'distance': '-',
+            'surface': '-',
+            'horses': [{  # تغيير من predictions إلى horses للتوحيد
                 'position': i + 1,
                 'number': h.get('number', ''),
                 'draw': h.get('draw', ''),
@@ -639,7 +643,7 @@ def generate_predictions_from_real_data(races: list, num_predictions: int) -> li
                 'rating': h.get('rating', 0),
                 'power_score': h.get('power_score', 0),
                 'win_probability': min(40, max(5, h.get('power_score', 50) - 50)),
-                'speed_kmph': 58 + (h.get('rating', 80) / 10)
+                'speed_kmph': round(58 + (h.get('rating', 80) / 10), 1)
             } for i, h in enumerate(top_picks)]
         }
         
@@ -1291,7 +1295,7 @@ def fetch_race():
             "venue_name": venue_name,
             "predictions_per_race": num_predictions,
             "total_races": len(predictions),
-            "predictions": predictions,
+            "races": predictions,  # تغيير من predictions إلى races للتوحيد
             "date": race_date,
             "timestamp": datetime.now().isoformat()
         }
