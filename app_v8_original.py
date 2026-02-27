@@ -1,46 +1,27 @@
 """
-HorseMaster AI - Complete System v9.0
+HorseMaster AI - Complete System v8.0
 =====================================
 Features:
 - Real Race Data from Multiple Sources
-- Real Race Data from URLs (emiratesracing.com)
-- UAE/Saudi: 5 predictions | International: 3 predictions
 - Dynamic Race Count per Meeting
-- Working Email System with PDF
+- Working Email System
 - Speed Calculation Based on Historical Data
 - Live Streaming
-- PDF Generation
 """
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 import re
 import json
 import smtplib
-import asyncio
-import sys
-import io
-from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
+from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 import random
 import logging
-
-# PDF Generation (optional)
-try:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.colors import HexColor, black, white
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-    REPORTLAB_AVAILABLE = True
-except ImportError:
-    REPORTLAB_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,7 +31,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "9.0",
+    "version": "8.0",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
@@ -58,37 +39,8 @@ CONFIG = {
         "password": "uboj rlmd jnmn dgfw",
         "from_name": "Elghali AI",
         "default_recipient": "paidera21@gmail.com"
-    },
-    "predictions": {
-        "uae_saudi": 5,      # UAE and Saudi Arabia: 5 horses
-        "international": 3   # UK, Australia, etc.: 3 horses
     }
 }
-
-# ========== Prediction Rules ==========
-UAE_VENUES = ["meydan", "jebel_ali", "jebel-ali", "al_ain", "al-ain", "abu_dhabi", "abu-dhabi", "sharjah"]
-SAUDI_VENUES = ["riyadh", "jeddah", "king abdulaziz"]
-
-def get_num_predictions_for_venue(url_or_track: str) -> int:
-    """Determine number of predictions based on venue"""
-    url_lower = url_or_track.lower()
-    
-    # UAE venues - 5 horses
-    for venue in UAE_VENUES:
-        if venue in url_lower:
-            return CONFIG["predictions"]["uae_saudi"]
-    
-    # Saudi venues - 5 horses
-    for venue in SAUDI_VENUES:
-        if venue in url_lower:
-            return CONFIG["predictions"]["uae_saudi"]
-    
-    # Emiratesracing.com - UAE - 5 horses
-    if "emiratesracing" in url_lower:
-        return CONFIG["predictions"]["uae_saudi"]
-    
-    # International - 3 horses
-    return CONFIG["predictions"]["international"]
 
 # ========== Live Stream URLs ==========
 LIVE_STREAMS = {
@@ -209,179 +161,6 @@ HORSE_PERFORMANCE_HISTORY = {
 }
 
 
-# ========== NEW: Real Data Fetching from URL ==========
-async def fetch_race_data_from_url(url: str) -> dict:
-    """Fetch race data from URL using Z-AI SDK"""
-    try:
-        import importlib.util
-        spec = importlib.util.find_spec('z_ai_web_dev_sdk')
-        
-        if spec is None:
-            logger.warning("Z-AI SDK not available")
-            return {"success": False, "error": "SDK not available"}
-        
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        
-        create_func = getattr(module, 'create', None)
-        if create_func is None:
-            return {"success": False, "error": "SDK create function not found"}
-        
-        zai = await create_func()
-        result = await zai.functions.invoke('page_reader', {'url': url})
-        
-        if result and 'data' in result:
-            html = result['data'].get('html', '')
-            return {"success": True, "html": html, "url": url}
-        
-        return {"success": False, "error": "No data returned"}
-        
-    except Exception as e:
-        logger.error(f"Error fetching URL {url}: {e}")
-        return {"success": False, "error": str(e)}
-
-
-def parse_emiratesracing_html(html: str) -> dict:
-    """Parse HTML from emiratesracing.com"""
-    races = []
-    
-    try:
-        row_pattern = r'<tr[^>]*>(.*?)</tr>'
-        rows = re.findall(row_pattern, html, re.DOTALL | re.IGNORECASE)
-        
-        current_race = None
-        
-        for row in rows:
-            clean_row = re.sub(r'<[^>]+>', ' | ', row)
-            clean_row = re.sub(r'\s+', ' ', clean_row).strip()
-            
-            race_match = re.search(r'Race\s*(\d+)', clean_row, re.IGNORECASE)
-            if race_match:
-                if current_race and current_race.get('horses'):
-                    races.append(current_race)
-                current_race = {
-                    'race_number': int(race_match.group(1)),
-                    'race_name': f"الشوط {race_match.group(1)}",
-                    'horses': []
-                }
-                continue
-            
-            horse_pattern = r'(\d+)\s*\((\d+)\)\s*([A-Z][A-Z\s\'\-]+)\s*\((AE|FR|GB|US|QA|IT|SA|IRE)\)'
-            horse_match = re.search(horse_pattern, clean_row)
-            
-            if horse_match and current_race:
-                horse = {
-                    'number': horse_match.group(1),
-                    'draw': horse_match.group(2),
-                    'name': horse_match.group(3).strip(),
-                    'country': horse_match.group(4),
-                    'jockey': extract_field(clean_row, 'Jockey'),
-                    'rating': extract_rating(clean_row),
-                    'trainer': extract_field(clean_row, 'Trainer'),
-                    'weight': extract_weight(clean_row),
-                    'is_nr': 'non runner' in clean_row.lower()
-                }
-                current_race['horses'].append(horse)
-        
-        if current_race and current_race.get('horses'):
-            races.append(current_race)
-            
-    except Exception as e:
-        logger.error(f"Error parsing HTML: {e}")
-    
-    return {"races": races}
-
-
-def extract_field(text: str, field_name: str) -> str:
-    """Extract field from text"""
-    pattern = rf'{field_name}[:\s]+([A-Za-z\s\']+?)(?:\s*(?:Rating|Trainer|Weight|\\|)|$)'
-    match = re.search(pattern, text, re.IGNORECASE)
-    return match.group(1).strip() if match else '-'
-
-
-def extract_rating(text: str) -> int:
-    """Extract rating from text"""
-    match = re.search(r'Rating[:\s]*(\d+)', text, re.IGNORECASE)
-    return int(match.group(1)) if match else 0
-
-
-def extract_weight(text: str) -> int:
-    """Extract weight from text"""
-    match = re.search(r'Weight[:\s]*(\d+)', text, re.IGNORECASE)
-    return int(match.group(1)) if match else 57
-
-
-def generate_predictions_from_real_data(races: list, num_predictions: int) -> list:
-    """Generate predictions from real parsed data"""
-    all_predictions = []
-    
-    for race in races:
-        horses = race.get('horses', [])
-        active_horses = [h for h in horses if not h.get('is_nr') and h.get('jockey') and h['jockey'] != '-']
-        
-        if not active_horses:
-            continue
-        
-        for horse in active_horses:
-            horse['power_score'] = calculate_real_horse_power(horse)
-        
-        active_horses.sort(key=lambda x: x['power_score'], reverse=True)
-        top_picks = active_horses[:num_predictions]
-        
-        prediction = {
-            'race_number': race.get('race_number', 0),
-            'race_name': race.get('race_name', ''),
-            'horses_count': len(active_horses),
-            'predictions': [{
-                'position': i + 1,
-                'number': h.get('number', ''),
-                'draw': h.get('draw', ''),
-                'name': h.get('name', ''),
-                'jockey': h.get('jockey', ''),
-                'trainer': h.get('trainer', ''),
-                'rating': h.get('rating', 0),
-                'power_score': h.get('power_score', 0),
-                'win_probability': min(40, max(5, h.get('power_score', 50) - 50)),
-                'speed_kmph': 58 + (h.get('rating', 80) / 10)
-            } for i, h in enumerate(top_picks)]
-        }
-        
-        all_predictions.append(prediction)
-    
-    return all_predictions
-
-
-def calculate_real_horse_power(horse: dict) -> float:
-    """Calculate power score for real horse data"""
-    score = 0
-    
-    rating = horse.get('rating', 0)
-    score += (rating / 120) * 40
-    
-    draw = horse.get('draw', '0')
-    try:
-        draw_num = int(draw) if draw else 0
-        if draw_num <= 3:
-            score += 20
-        elif draw_num <= 6:
-            score += 15
-        elif draw_num <= 10:
-            score += 10
-        else:
-            score += 5
-    except:
-        pass
-    
-    jockey = horse.get('jockey', '').lower()
-    top_jockeys = ['de sousa', "o'shea", 'beasley', 'paiva', 'mullen', 'buick', 'dettori']
-    if any(tj in jockey for tj in top_jockeys):
-        score += 20
-    else:
-        score += 10
-    
-    return round(score, 1)
-
-
 def calculate_speed_from_history(horse_name: str, target_distance: int, target_track: str) -> dict:
     """Calculate speed based on historical performance"""
     history = HORSE_PERFORMANCE_HISTORY.get(horse_name, [])
@@ -441,18 +220,21 @@ def estimate_speed_no_history(distance: int) -> dict:
 
 def get_real_race_count(track_id: str, country: str, date: str) -> int:
     """Get actual number of races for a meeting"""
+    # This would normally fetch from an API
+    # For now, return realistic values based on track type
+    
     race_counts = {
-        "meydan": [6, 7, 8, 9],
+        "meydan": [6, 7, 8, 9],  # Meydan varies between 6-9 races
         "jebel_ali": [5, 6, 7],
         "al_ain": [5, 6],
         "abu_dhabi": [5, 6, 7],
         "sharjah": [4, 5, 6],
-        "wolverhampton": [6, 7, 8, 9],
+        "wolverhampton": [6, 7, 8, 9],  # UK AW tracks often have 6-9 races
         "kempton": [6, 7, 8],
         "lingfield": [6, 7, 8],
         "newcastle": [6, 7],
         "southwell": [6, 7, 8],
-        "randwick": [8, 9, 10],
+        "randwick": [8, 9, 10],  # Australian tracks often have more races
         "flemington": [8, 9, 10],
         "riyadh": [6, 7, 8],
         "al_rayyan": [5, 6, 7],
@@ -470,12 +252,17 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
     track_info = SOURCES.get(country, {}).get(track_id, {})
     track_name = track_info.get("name", track_id.title())
     
+    # Get real number of races for this meeting
     num_races = get_real_race_count(track_id, country, date)
+    
+    # Available distances
     distances = [1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2800, 3000]
     
+    # Start times by country
     start_times = {"UAE": 14, "UK": 13, "AUSTRALIA": 11, "SAUDI": 15, "QATAR": 15, "IRELAND": 13}
     start_hour = start_times.get(country, 14)
     
+    # Surfaces by track
     surfaces_by_track = {
         "meydan": ["Dirt", "Turf"],
         "jebel_ali": ["Dirt"],
@@ -492,14 +279,12 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
     track_surfaces = surfaces_by_track.get(track_id, ["Dirt", "Turf"])
     horses_pool = HORSES_DB.get(country, HORSES_DB["UAE"]).copy()
     
-    # Determine number of predictions based on venue
-    num_predictions = get_num_predictions_for_venue(track_id)
-    
     races = []
     all_horses = []
     used_horses = set()
     
     for race_num in range(1, num_races + 1):
+        # Assign distance (realistic distribution)
         if race_num <= 2:
             distance = random.choice([1000, 1200, 1400])
         elif race_num <= 4:
@@ -509,9 +294,13 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
         else:
             distance = random.choice([2000, 2200, 2400, 2800])
         
+        # Assign surface
         surface = track_surfaces[(race_num - 1) % len(track_surfaces)]
+        
+        # Assign time
         race_time = f"{start_hour + (race_num - 1) // 2}:{(race_num - 1) % 2 * 30:02d}"
         
+        # Number of horses (realistic field sizes)
         if country == "UAE":
             num_horses = random.randint(7, 14)
         elif country == "UK":
@@ -519,12 +308,14 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
         else:
             num_horses = random.randint(8, 14)
         
+        # Select horses for this race
         race_horses = []
         
         for i in range(num_horses):
             horse_number = i + 1
             draw_number = i + 1
             
+            # Get a horse that hasn't been used yet, or cycle through
             available = [h for h in horses_pool if h["name"] not in used_horses]
             if not available:
                 used_horses.clear()
@@ -533,8 +324,13 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
             horse_data = random.choice(available)
             used_horses.add(horse_data["name"])
             
+            # Calculate speed
             speed_data = calculate_speed_from_history(horse_data["name"], distance, track_id)
+            
+            # Get jockey and trainer
             jockey, trainer = get_jockey_trainer(country)
+            
+            # Calculate power score
             power_score = calculate_power_score(horse_data, speed_data, jockey, trainer)
             
             horse_entry = {
@@ -561,6 +357,7 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
             
             race_horses.append(horse_entry)
         
+        # Sort by power score
         race_horses.sort(key=lambda x: x["power_score"], reverse=True)
         for i, h in enumerate(race_horses):
             h["position"] = i + 1
@@ -575,11 +372,12 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
             "surface": surface,
             "going": "Standard",
             "prize": f"${random.randint(30, 150) * 1000:,}",
-            "horses": race_horses[:num_predictions]  # Limit predictions per race
+            "horses": race_horses
         }
         
         races.append(race_info)
     
+    # Sort all horses for top picks
     all_horses.sort(key=lambda x: x["power_score"], reverse=True)
     
     nap = all_horses[0] if all_horses else None
@@ -596,7 +394,6 @@ def generate_race_card(track_id: str, country: str, date: str) -> dict:
         "track_name": track_name,
         "date": date,
         "total_races": num_races,
-        "predictions_per_race": num_predictions,
         "races": races,
         "nap": format_pick(nap),
         "next_best": format_pick(next_best),
@@ -670,6 +467,7 @@ def calculate_power_score(horse: dict, speed_data: dict, jockey: dict, trainer: 
     jockey_score = jockey["rating"] * 0.20
     trainer_score = trainer["rating"] * 0.15
     
+    # Form score
     form = horse.get("form", "0000")
     form_values = {"1": 10, "2": 7, "3": 5, "4": 3, "5": 1, "P": 0, "U": -2}
     form_score = sum(form_values.get(c, 0) for c in form) * 0.10
@@ -710,8 +508,8 @@ def format_pick(horse: dict) -> dict:
 
 
 # ========== Email System ==========
-def send_email(to_email: str, subject: str, html_content: str, pdf_bytes: bytes = None, pdf_filename: str = None) -> dict:
-    """Send email via Gmail SMTP with optional PDF attachment"""
+def send_email(to_email: str, subject: str, html_content: str) -> dict:
+    """Send email via Gmail SMTP"""
     result = {"success": False, "message": ""}
     
     email_config = CONFIG["email"]
@@ -725,17 +523,16 @@ def send_email(to_email: str, subject: str, html_content: str, pdf_bytes: bytes 
         html_part = MIMEText(html_content, "html", "utf-8")
         msg.attach(html_part)
         
-        # Add PDF attachment if provided
-        if pdf_bytes and pdf_filename:
-            pdf_attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
-            pdf_attachment.add_header('Content-Disposition', 'attachment', filename=pdf_filename)
-            msg.attach(pdf_attachment)
-        
+        # Connect to SMTP server
         server = smtplib.SMTP(email_config["smtp_server"], email_config["smtp_port"])
         server.ehlo()
         server.starttls()
         server.ehlo()
+        
+        # Login
         server.login(email_config["email"], email_config["password"])
+        
+        # Send
         server.sendmail(email_config["email"], to_email, msg.as_string())
         server.quit()
         
@@ -761,7 +558,7 @@ def generate_email_html(predictions: dict) -> str:
     races_html = ""
     for race in predictions.get("races", []):
         horses_rows = ""
-        for h in race.get("horses", []):
+        for h in race.get("horses", [])[:5]:
             horses_rows += f"""
             <tr>
                 <td>{h.get('position', 0)}</td>
@@ -803,7 +600,7 @@ def generate_email_html(predictions: dict) -> str:
             <div style="background:linear-gradient(135deg,#8B0000,#b22222);color:white;padding:30px;text-align:center;">
                 <h1 style="color:#ffd700;margin:0;">🐎 HorseMaster AI v{CONFIG["version"]}</h1>
                 <p>ترشيحات {predictions.get('track_name', '')} - {predictions.get('date', '')}</p>
-                <p style="font-size:1.2rem;">{predictions.get('total_races', 0)} أشواط | {predictions.get('predictions_per_race', 5)} ترشيحات/شوط</p>
+                <p style="font-size:1.2rem;">{predictions.get('total_races', 0)} أشواط</p>
             </div>
             
             <div style="background:linear-gradient(135deg,#FFF8DC,#FFFACD);border:2px solid #D4AF37;padding:20px;margin:20px;text-align:center;border-radius:8px;">
@@ -830,62 +627,6 @@ def generate_email_html(predictions: dict) -> str:
     """
 
 
-# ========== NEW: PDF Generation ==========
-def generate_pdf(predictions: dict) -> bytes:
-    """Generate PDF report"""
-    if not REPORTLAB_AVAILABLE:
-        return None
-    
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2*cm, bottomMargin=2*cm)
-    
-    styles = getSampleStyleSheet()
-    
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        alignment=TA_CENTER,
-        spaceAfter=20,
-        textColor=HexColor('#8B0000')
-    )
-    
-    elements = []
-    elements.append(Paragraph("🏇 HorseMaster AI", title_style))
-    elements.append(Paragraph(f"ترشيحات {predictions.get('track_name', '')} - {predictions.get('date', '')}", styles['Normal']))
-    elements.append(Paragraph(f"عدد الترشيحات: {predictions.get('predictions_per_race', 5)} خيول/شوط", styles['Normal']))
-    elements.append(Spacer(1, 20))
-    
-    for race in predictions.get('races', []):
-        elements.append(Paragraph(f"الشوط {race.get('number', '')} - {race.get('distance', '')}m", styles['Heading2']))
-        
-        table_data = [['المركز', 'الرقم', 'البوابة', 'الحصان', 'الفارس', 'القوة']]
-        for h in race.get('horses', []):
-            table_data.append([
-                str(h.get('position', 0)),
-                str(h.get('number', 0)),
-                str(h.get('draw', 0)),
-                h.get('name', '')[:20],
-                h.get('jockey', '')[:15],
-                str(h.get('power_score', 0))
-            ])
-        
-        table = Table(table_data, colWidths=[2*cm, 2*cm, 2*cm, 4*cm, 3*cm, 2*cm])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#8B0000')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 1, black),
-        ]))
-        
-        elements.append(table)
-        elements.append(Spacer(1, 15))
-    
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer.getvalue()
-
-
 # ========== Routes ==========
 @app.route('/')
 def index():
@@ -898,15 +639,11 @@ def health():
         "status": "healthy",
         "version": CONFIG["version"],
         "email_configured": True,
-        "pdf_available": REPORTLAB_AVAILABLE,
         "features": [
             "Real Race Data with Dynamic Race Count",
-            "Real Race Data from URLs (emiratesracing.com)",
-            "UAE/Saudi: 5 predictions | International: 3 predictions",
-            "Working Email System with PDF",
+            "Working Email System",
             "Speed Based on Historical Data",
-            "Horse Number & Draw Number",
-            "PDF Generation"
+            "Horse Number & Draw Number"
         ],
         "timestamp": datetime.now().isoformat()
     })
@@ -947,109 +684,22 @@ def predict():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ========== NEW: Fetch Real Data from URL ==========
-@app.route('/api/fetch-race', methods=['POST'])
-def fetch_race():
-    """Fetch real race data from URL"""
-    try:
-        data = request.get_json() or {}
-        url = data.get('url', '')
-        send_email_flag = data.get('send_email', False)
-        email_address = data.get('email', CONFIG["email"]["default_recipient"])
-        
-        if not url:
-            return jsonify({"success": False, "error": "URL is required"})
-        
-        # Determine number of predictions
-        num_predictions = get_num_predictions_for_venue(url)
-        
-        # Fetch data
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(fetch_race_data_from_url(url))
-        loop.close()
-        
-        if not result.get('success'):
-            return jsonify({"success": False, "error": result.get('error', 'Failed to fetch')})
-        
-        # Parse HTML
-        parsed = parse_emiratesracing_html(result.get('html', ''))
-        
-        # Generate predictions
-        predictions = generate_predictions_from_real_data(parsed.get('races', []), num_predictions)
-        
-        # Extract venue name
-        venue_name = 'Unknown'
-        for venue in UAE_VENUES + SAUDI_VENUES:
-            if venue in url.lower():
-                venue_name = venue.replace('_', ' ').replace('-', ' ').title()
-                break
-        if 'emiratesracing' in url.lower():
-            venue_name = 'Emirates Racing'
-        
-        # Extract date
-        date_match = re.search(r'(\d{4}-\d{2}-\d{2})', url)
-        race_date = date_match.group(1) if date_match else datetime.now().strftime('%Y-%m-%d')
-        
-        response_data = {
-            "success": True,
-            "url": url,
-            "venue_name": venue_name,
-            "predictions_per_race": num_predictions,
-            "total_races": len(predictions),
-            "predictions": predictions,
-            "date": race_date,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        # Send email if requested
-        if send_email_flag and predictions:
-            pdf_bytes = generate_pdf(response_data)
-            if pdf_bytes:
-                pdf_filename = f"HorseMaster_{venue_name}_{race_date}.pdf"
-                html_content = generate_email_html(response_data)
-                email_result = send_email(
-                    email_address,
-                    f"🏇 HorseMaster AI - ترشيحات {venue_name} - {race_date}",
-                    html_content,
-                    pdf_bytes,
-                    pdf_filename
-                )
-                response_data['email_result'] = email_result
-        
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logger.error(f"Fetch race error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
 @app.route('/api/send-email', methods=['POST'])
 def send_report_email():
     try:
         data = request.get_json() or {}
         email = data.get('email', CONFIG["email"]["default_recipient"])
         predictions = data.get('predictions', {})
-        include_pdf = data.get('include_pdf', True)
         
         if not predictions:
             return jsonify({"success": False, "message": "لا توجد ترشيحات للإرسال"})
-        
-        pdf_bytes = None
-        pdf_filename = None
-        if include_pdf and REPORTLAB_AVAILABLE:
-            pdf_bytes = generate_pdf(predictions)
-            if pdf_bytes:
-                pdf_filename = f"HorseMaster_{predictions.get('track_name', 'race')}_{predictions.get('date', datetime.now().strftime('%Y-%m-%d'))}.pdf"
         
         html_content = generate_email_html(predictions)
         
         result = send_email(
             email,
             f"🏇 HorseMaster AI - ترشيحات {predictions.get('track_name', '')} - {predictions.get('date', '')} ({predictions.get('total_races', 0)} أشواط)",
-            html_content,
-            pdf_bytes,
-            pdf_filename
+            html_content
         )
         
         return jsonify(result)
@@ -1066,20 +716,14 @@ def test_email():
         
         result = send_email(
             test_email_addr,
-            "📧 اختبار HorseMaster AI v9.0",
+            "📧 اختبار HorseMaster AI",
             """
             <html dir="rtl">
             <body style="font-family:Arial;background:#f5f5f5;padding:20px;">
                 <div style="max-width:500px;margin:0 auto;background:white;padding:30px;border-radius:10px;text-align:center;">
-                    <h1 style="color:#8B0000;">🏇 HorseMaster AI v9.0</h1>
+                    <h1 style="color:#8B0000;">🏇 HorseMaster AI</h1>
                     <p style="color:#28a745;font-size:1.2rem;">✅ البريد يعمل بشكل صحيح!</p>
                     <p>تم إرسال هذا البريد الاختباري بنجاح.</p>
-                    <p><strong>الميزات الجديدة:</strong></p>
-                    <ul style="text-align:right;">
-                        <li>سباقات الإمارات والسعودية: 5 خيول</li>
-                        <li>السباقات الدولية: 3 خيول</li>
-                        <li>توليد PDF تلقائي</li>
-                    </ul>
                 </div>
             </body>
             </html>
@@ -1098,7 +742,7 @@ def render_html_interface():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐎 HorseMaster AI v9.0</title>
+    <title>🐎 HorseMaster AI v8.0</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1109,19 +753,11 @@ def render_html_interface():
         .header h1 { font-size: 2.5rem; background: linear-gradient(90deg, #ffd700, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .version { color: #28a745; font-size: 0.9rem; }
         
-        .rules-box { background: rgba(0,123,255,0.2); border: 1px solid #007bff; border-radius: 10px; padding: 15px; margin: 15px 0; }
-        .rules-box h4 { color: #007bff; margin-bottom: 10px; }
-        .rules-box ul { margin-right: 20px; }
-        .rules-box li { margin: 5px 0; }
-        
         .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .control-group { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; }
         .control-group label { display: block; margin-bottom: 8px; color: #ffd700; font-size: 0.9rem; }
         .control-group select, .control-group input { width: 100%; padding: 12px; border: 2px solid rgba(255,215,0,0.3); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; font-family: inherit; font-size: 1rem; }
         .control-group select option { background: #1a1a2e; color: #fff; }
-        
-        .url-section { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .url-section label { display: block; margin-bottom: 10px; color: #ffd700; }
         
         .btn { padding: 15px 30px; background: linear-gradient(90deg, #ffd700, #ff6b6b); border: none; border-radius: 10px; color: #000; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.3s; margin: 5px; }
         .btn:hover { opacity: 0.9; transform: scale(1.02); }
@@ -1154,11 +790,6 @@ def render_html_interface():
         .live-stream-box { background: rgba(220,53,69,0.2); border: 2px solid #dc3545; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center; }
         .stream-link { padding: 10px 20px; background: #dc3545; color: #fff; border-radius: 8px; text-decoration: none; display: inline-block; margin: 5px; }
         
-        .badge { display: inline-block; padding: 3px 10px; border-radius: 15px; font-size: 0.8rem; margin: 3px; }
-        .badge-uae { background: #28a745; }
-        .badge-saudi { background: #17a2b8; }
-        .badge-intl { background: #6c757d; }
-        
         .footer { text-align: center; padding: 20px; color: #666; margin-top: 20px; }
     </style>
 </head>
@@ -1166,25 +797,7 @@ def render_html_interface():
     <div class="container">
         <div class="header">
             <h1>🐎 HorseMaster AI</h1>
-            <div class="version">v9.0 - Real Data | UAE/Saudi: 5 | International: 3</div>
-        </div>
-        
-        <div class="rules-box">
-            <h4>📋 قواعد الترشيحات:</h4>
-            <ul>
-                <li><strong>سباقات الإمارات والسعودية:</strong> <span class="badge badge-uae">5 خيول</span></li>
-                <li><strong>السباقات الدولية:</strong> <span class="badge badge-intl">3 خيول</span></li>
-            </ul>
-        </div>
-        
-        <div class="url-section">
-            <label>🔗 رابط بطاقة السباق (emiratesracing.com):</label>
-            <input type="url" id="raceUrl" placeholder="https://emiratesracing.com/racecard/2026-02-27/all/declarations" style="width:100%;padding:12px;border-radius:8px;border:2px solid rgba(255,215,0,0.3);background:rgba(0,0,0,0.3);color:#fff;">
-            <div style="margin-top:10px;">
-                <label><input type="checkbox" id="sendEmailFlag"> 📧 إرسال PDF بالبريد</label>
-                <input type="email" id="emailForUrl" placeholder="البريد الإلكتروني" style="width:100%;padding:10px;margin-top:5px;border-radius:8px;border:2px solid rgba(255,215,0,0.3);background:rgba(0,0,0,0.3);color:#fff;">
-            </div>
-            <button class="btn btn-full" onclick="fetchFromUrl()" style="margin-top:15px;">🔍 جلب وتحليل البيانات الحقيقية</button>
+            <div class="version">v8.0 - Real Race Data | Working Email</div>
         </div>
         
         <div class="controls">
@@ -1213,7 +826,7 @@ def render_html_interface():
             </div>
         </div>
         
-        <button class="btn btn-full" onclick="getPredictions()">🔍 تحليل السباق (بيانات محلية)</button>
+        <button class="btn btn-full" onclick="getPredictions()">🔍 تحليل السباق</button>
         
         <div id="loading" class="loading">
             <div class="spinner"></div>
@@ -1233,12 +846,12 @@ def render_html_interface():
             <div id="races"></div>
             
             <div style="text-align: center; margin-top: 20px;">
-                <button class="btn btn-email" onclick="sendEmail()">📧 إرسال بالبريد مع PDF</button>
+                <button class="btn btn-email" onclick="sendEmail()">📧 إرسال بالبريد</button>
             </div>
         </div>
         
         <div class="footer">
-            <p>© 2026 Elghali AI - HorseMaster AI v9.0</p>
+            <p>© 2026 Elghali AI - HorseMaster AI v8.0</p>
         </div>
     </div>
     
@@ -1261,42 +874,6 @@ def render_html_interface():
                     await new Promise(r => setTimeout(r, 2000));
                 }
             }
-        }
-        
-        async function fetchFromUrl() {
-            const url = document.getElementById('raceUrl').value;
-            const sendEmailFlag = document.getElementById('sendEmailFlag').checked;
-            const email = document.getElementById('emailForUrl').value;
-            
-            if (!url) {
-                alert('الرجاء إدخال رابط السباق');
-                return;
-            }
-            
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('results').style.display = 'none';
-            
-            try {
-                const response = await fetchWithRetry('/api/fetch-race', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({url, send_email: sendEmailFlag, email: email || undefined})
-                });
-                
-                if (response.success) {
-                    currentPredictions = response;
-                    displayResults(response);
-                    if (response.email_result) {
-                        alert(response.email_result.success ? '✅ ' + response.email_result.message : '❌ ' + response.email_result.message);
-                    }
-                } else {
-                    alert('⚠️ خطأ: ' + response.error);
-                }
-            } catch(e) {
-                alert('⚠️ خطأ: ' + e.message);
-            }
-            
-            document.getElementById('loading').style.display = 'none';
         }
         
         async function loadTracks() {
@@ -1342,11 +919,7 @@ def render_html_interface():
         }
         
         function displayResults(data) {
-            const predBadge = data.predictions_per_race === 5 ? 
-                '<span class="badge badge-uae">5 خيول/شوط</span>' : 
-                '<span class="badge badge-intl">3 خيول/شوط</span>';
-            
-            document.getElementById('raceCount').innerHTML = '📊 ' + data.total_races + ' أشواط في ' + data.track_name + ' ' + predBadge;
+            document.getElementById('raceCount').textContent = '📊 ' + data.total_races + ' أشواط في ' + data.track_name;
             
             // NAP
             if (data.nap && data.nap.name) {
@@ -1375,13 +948,6 @@ def render_html_interface():
             }
             document.getElementById('quickPicks').innerHTML = picksHtml;
             
-            // Live Stream
-            if (data.live_stream && data.live_stream.url) {
-                document.getElementById('liveStreamBox').innerHTML = 
-                    '<h4>📺 البث المباشر</h4>' +
-                    '<a href="' + data.live_stream.url + '" target="_blank" class="stream-link">مشاهدة البث</a>';
-            }
-            
             // Races
             let racesHtml = '';
             for (const race of data.races) {
@@ -1403,31 +969,43 @@ def render_html_interface():
                 
                 racesHtml += '<div class="race-card">' +
                     '<div class="race-header"><h3>🏇 ' + race.name + '</h3>' +
-                    '<span>' + race.time + ' | ' + race.distance + 'm | ' + race.surface + '</span></div>' +
+                    '<span style="color:#888;">' + race.time + ' | ' + race.distance + 'm | ' + race.surface + '</span></div>' +
                     '<div class="table-wrapper"><table>' +
-                    '<tr><th>المركز</th><th>الرقم</th><th>البوابة</th><th>الحصان</th><th>الفارس</th><th>التصنيف</th><th>القوة</th><th>السرعة</th><th>%</th></tr>' +
-                    horsesRows + '</table></div></div>';
+                    '<thead><tr><th>#</th><th>الرقم</th><th>البوابة</th><th>الحصان</th>' +
+                    '<th>الفارس</th><th>التقييم</th><th>القوة</th><th>السرعة</th><th>%</th></tr></thead>' +
+                    '<tbody>' + horsesRows + '</tbody></table></div></div>';
             }
             document.getElementById('races').innerHTML = racesHtml;
+            
+            // Live Stream
+            if (data.live_stream && data.live_stream.url) {
+                document.getElementById('liveStreamBox').innerHTML = 
+                    '<div class="live-stream-box"><h3>📺 البث المباشر</h3>' +
+                    '<a href="' + data.live_stream.url + '" target="_blank" class="stream-link">🎬 مشاهدة</a></div>';
+            }
+            
             document.getElementById('results').style.display = 'block';
         }
         
         async function sendEmail() {
+            let email = document.getElementById('email').value || 'paidera21@gmail.com';
             if (!currentPredictions) {
-                alert('لا توجد ترشيحات للإرسال');
+                alert('لا توجد ترشيحات');
                 return;
             }
             
-            const email = document.getElementById('email').value || 'paidera21@gmail.com';
-            
             try {
-                const result = await fetchWithRetry('/api/send-email', {
+                const data = await fetchWithRetry('/api/send-email', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email, predictions: currentPredictions, include_pdf: true})
+                    body: JSON.stringify({email, predictions: currentPredictions})
                 });
                 
-                alert(result.success ? '✅ ' + result.message : '❌ ' + result.message);
+                if (data.success) {
+                    alert('✅ تم إرسال البريد بنجاح إلى: ' + email);
+                } else {
+                    alert('⚠️ ' + data.message);
+                }
             } catch(e) {
                 alert('⚠️ خطأ: ' + e.message);
             }
@@ -1439,5 +1017,7 @@ def render_html_interface():
 </html>
 '''
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
