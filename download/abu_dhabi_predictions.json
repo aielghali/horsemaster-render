@@ -1,0 +1,193 @@
+{
+  "meeting": {
+    "date": "27 February 2026",
+    "venue": "Abu Dhabi Turf Club",
+    "country": "UAE",
+    "surface": "Turf",
+    "going": "Good"
+  },
+  "predictions": [
+    {
+      "race": 1,
+      "name": "Wathba Stallions Cup",
+      "distance": "1400m",
+      "time": "16:00",
+      "prediction": {
+        "nap": {
+          "horse": "AF GHAYYAR",
+          "reason": "High rating (85) and strong trainer form (Ernst Oertel) suggest top performance over this distance."
+        },
+        "next_best": {
+          "horse": "ALJAMRI",
+          "reason": "Also rated 85 with a top jockey (Silvestre De Sousa), making him a strong contender for a podium finish."
+        },
+        "each_way": {
+          "horse": "AF NAFITH",
+          "reason": "Solid rating (80) and trainer form provide value for a place finish, especially with a favorable draw."
+        },
+        "top_3": [
+          "AF GHAYYAR",
+          "ALJAMRI",
+          "AF NAFITH"
+        ],
+        "analysis": "The race is dominated by AF GHAYYAR and ALJAMRI, both rated 85 and trained by top stables. AF GHAYYAR has a slight edge with jockey Tadhg O'Shea's consistency. AF NAFITH (80) and KOYAN DE CARRERE (64) are dark horses for places, with the latter benefiting from a low draw. The going (good turf) suits all horses, but the 1400m distance favors speed and early pace, making the high-rated horses the most likely to prevail."
+      }
+    },
+    {
+      "race": 2,
+      "name": "The Crescent Light Stakes",
+      "distance": "1600m",
+      "time": "16:30",
+      "prediction": {
+        "nap": {
+          "horse": "BAHWAN",
+          "reason": "Highest rating (125) and strong form under trainer M Shamsi, who has a good record in Listed races. Draw 3 is ideal for the 1600m distance."
+        },
+        "next_best": {
+          "horse": "AJRAD ATHBAH",
+          "reason": "Solid rating (116) with top jockey Silvestre De Sousa, who excels on turf. Draw 1 provides a clear early running position."
+        },
+        "each_way": {
+          "horse": "QUEPOS",
+          "reason": "Decent rating (98) and consistent under trainer Satish Seemar. Draw 6 offers a good mid-pack position for a strong finish."
+        },
+        "top_3": [
+          "BAHWAN",
+          "AJRAD ATHBAH",
+          "QUEPOS"
+        ],
+        "analysis": "BAHWAN is the clear standout with the highest rating and trainer form. AJRAD ATHBAH and QUEPOS are the main contenders for the minor places, with the latter offering each-way value. The draw advantage favors BAHWAN and AJRAD ATHBAH, while QUEPOS can capitalize on a strong late run."
+      }
+    },
+    {
+      "race": 3,
+      "name": "Soil of the Union",
+      "distance": "1800m",
+      "time": "17:00",
+      "prediction": {
+        "nap": {
+          "horse": "INVICTUS AL ASHAI",
+          "reason": "Highest rating (85) and strong form under trainer Ernst Oertel, who has a good record with Arabians. Jockey Sandro Paiva is reliable in turf races."
+        },
+        "next_best": {
+          "horse": "AF TUBHER",
+          "reason": "Solid rating (82) and another well-handled horse by Ernst Oertel. Draw 4 is favorable for the 1800m turf distance."
+        },
+        "each_way": {
+          "horse": "HAITHAM DE MIREVAL",
+          "reason": "Decent rating (78) and trainer M Shamsi has been in good form. Draw 3 provides a good attacking position for the middle distance."
+        },
+        "top_3": [
+          "INVICTUS AL ASHAI",
+          "AF TUBHER",
+          "HAITHAM DE MIREVAL"
+        ],
+        "analysis": "This is a competitive handicap with Ernst Oertel-trained horses dominating the top ratings. INVICTUS AL ASHAI appears the most likely winner due to superior rating and trainer-jockey synergy. AF TUBHER and HAITHAM DE MIREVAL are strong contenders for minor honors, while MN HATTAN and FIFRE AL MAURY may struggle against higher-rated opposition. The going (good turf) suits all runners, but the middle draws (3-4) hold a slight edge over the extremes."
+      }
+    },
+    {
+      "race": 4,
+      "name": "Masar Almajd Mile",
+      "distance": "1600m",
+      "time": "17:30",
+      "prediction": {
+        "nap": {
+          "horse": "AF MARMUQ",
+          "reason": "Highest rated horse with a strong rating of 78 and the draw advantage in stall 1, which is ideal for a 1600m turf race."
+        },
+        "next_best": {
+          "horse": "AF MUHEM",
+          "reason": "Trained by the same stable as the top-rated horse and rated 75, with jockey Tadhg O'Shea's proven ability in close finishes."
+        },
+        "each_way": {
+          "horse": "ALGRAIN",
+          "reason": "Rated 70 with Silvestre De Sousa's excellent turf ride record, offering value at a higher price for a place finish."
+        },
+        "top_3": [
+          "AF MARMUQ",
+          "AF MUHEM",
+          "ALGRAIN"
+        ],
+        "analysis": "The race appears to be dominated by the Ernst Oertel-trained duo, AF MARMUQ and AF MUHEM, with the former having the edge due to higher rating and draw advantage. ALGRAIN is the best each-way value given the jockey's turf prowess. The distance is suitable for all horses, but the top-rated pair should set the pace."
+      }
+    },
+    {
+      "race": 5,
+      "name": "Darb Al Reeh Sprint",
+      "distance": "1200m",
+      "time": "18:00",
+      "prediction": {
+        "nap": {
+          "horse": "AF ALZAHI",
+          "reason": "Highest rated horse with a strong jockey-trainer combination and drawn in an ideal low draw for a 1200m sprint."
+        },
+        "next_best": {
+          "horse": "AF ALFAHEM",
+          "reason": "Trained by the same top stable as the favorite and has a decent rating, making it a strong contender if the favorite underperforms."
+        },
+        "each_way": {
+          "horse": "BA'ADI",
+          "reason": "Experienced jockey Silvestre De Sousa and a solid rating give it a chance to place in the top three, offering value each-way."
+        },
+        "top_3": [
+          "AF ALZAHI",
+          "AF ALFAHEM",
+          "BA'ADI"
+        ],
+        "analysis": "This is a competitive sprint with AF ALZAHI standing out as the top choice due to its superior rating and draw advantage. The Oertel-trained pair (AF ALZAHI and AF ALFAHEM) are expected to dominate, with BA'ADI providing a strong each-way option. The low draws (1 and 2) are crucial over this distance, giving the favorites an edge."
+      }
+    },
+    {
+      "race": 6,
+      "name": "The Flash of Sand Handicap",
+      "distance": "1400m",
+      "time": "19:00",
+      "prediction": {
+        "nap": {
+          "horse": "ACACUS",
+          "reason": "Highest rated horse (70) with strong trainer form under Satish Seemar. Draw 1 provides a favorable rail position for a quick start."
+        },
+        "next_best": {
+          "horse": "SILENT SPEECH",
+          "reason": "Solid rating (68) and consistent jockey performance. Draw 2 allows for a smooth tracking position behind the leader."
+        },
+        "each_way": {
+          "horse": "HOPEFULLY YES",
+          "reason": "Decent rating (65) and trainer D Watson's good form over this distance. Mid-draw (3) offers flexibility in race tactics."
+        },
+        "top_3": [
+          "ACACUS",
+          "SILENT SPEECH",
+          "HOPEFULLY YES"
+        ],
+        "analysis": "The race is led by top-rated ACACUS, who has the edge in rating and draw advantage. SILENT SPEECH is the main threat with a solid rating and good jockey. HOPEFULLY YES could secure a place with trainer form and mid-draw flexibility. The 1400m distance suits speed horses, making the early draw critical."
+      }
+    },
+    {
+      "race": 7,
+      "name": "The Majlis Mile",
+      "distance": "1600m",
+      "time": "19:30",
+      "prediction": {
+        "nap": {
+          "horse": "BUCANERO",
+          "reason": "Trainer Satish Seemar is in excellent form, and the horse has shown promising work patterns. Draw 2 provides a good tactical advantage for the mile on good turf."
+        },
+        "next_best": {
+          "horse": "DUKEDOM",
+          "reason": "Another Seemar-trained horse with consistent prep races, and jockey Richard Mullen has a strong record in maidens. Draw 4 allows for a prominent run if needed."
+        },
+        "each_way": {
+          "horse": "ALMUZN",
+          "reason": "Trainer Majed Al Jahoori has a solid strike rate in maidens, and jockey Silvestre De Sousa is adept at getting the best out of horses. Draw 3 is a decent spot for a late run."
+        },
+        "top_3": [
+          "BUCANERO",
+          "DUKEDOM",
+          "ALMUZN"
+        ],
+        "analysis": "This is a competitive maiden mile with several well-prepped horses. Seemar's pair (Bucanero and Dukedom) stand out due to trainer form and tactical draws, while AlmuZN offers each-way value with a strong jockey. The race likely hinges on early pace, with Bucanero's draw and prep work giving the edge."
+      }
+    }
+  ]
+}

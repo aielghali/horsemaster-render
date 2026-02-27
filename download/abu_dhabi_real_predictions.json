@@ -1,0 +1,186 @@
+{
+  "meeting": {
+    "date": "27 February 2026",
+    "venue": "Abu Dhabi Turf Club",
+    "country": "UAE",
+    "surface": "Turf",
+    "going": "Good"
+  },
+  "predictions": [
+    {
+      "race": 1,
+      "name": "Wathba Stallions Cup",
+      "horses_count": 13,
+      "prediction": {
+        "nap": {
+          "horse": "LAYLA DE LAGARDE",
+          "reason": "Top-rated with a strong jockey-trainer combination and consistent form."
+        },
+        "next_best": {
+          "horse": "MH RAHI",
+          "reason": "Solid rating and trainer form, with a favorable draw position."
+        },
+        "each_way": {
+          "horse": "ALJAMRI",
+          "reason": "Decent rating and jockey ability, capable of finishing in the top three."
+        },
+        "top_3": [
+          "LAYLA DE LAGARDE",
+          "MH RAHI",
+          "ALJAMRI"
+        ],
+        "analysis": "The race is competitive with several horses closely matched on ratings, but LAYLA DE LAGARDE stands out with the best jockey-trainer combination. MH RAHI and ALJAMRI are strong contenders for the minor placings."
+      }
+    },
+    {
+      "race": 2,
+      "name": "The Crescent Light Stakes",
+      "horses_count": 9,
+      "prediction": {
+        "nap": {
+          "horse": "AJRAD ATHBAH",
+          "reason": "Highest rating with a top jockey and trainer combination."
+        },
+        "next_best": {
+          "horse": "BAHWAN",
+          "reason": "Solid rating and consistent trainer form."
+        },
+        "each_way": {
+          "horse": "KANTI DE BOZOULS",
+          "reason": "Good rating and drawn well for a strong finish."
+        },
+        "top_3": [
+          "AJRAD ATHBAH",
+          "BAHWAN",
+          "KANTI DE BOZOULS"
+        ],
+        "analysis": "A competitive race with AJRAD ATHBAH holding the edge due to superior rating and jockey strength. BAHWAN and KANTI DE BOZOULS are the main contenders for the minor placings."
+      }
+    },
+    {
+      "race": 3,
+      "name": "Soil of the Union",
+      "horses_count": 12,
+      "prediction": {
+        "nap": {
+          "horse": "MN HATTAN",
+          "reason": "Highest rating (94) with a favorable draw and strong jockey support."
+        },
+        "next_best": {
+          "horse": "COLT AL MAMUN MONLAU",
+          "reason": "Highly rated (93) with proven trainer form and a solid draw."
+        },
+        "each_way": {
+          "horse": "ZA'AKHIR",
+          "reason": "Solid rating (87) with a decent draw and capable jockey."
+        },
+        "top_3": [
+          "MN HATTAN",
+          "COLT AL MAMUN MONLAU",
+          "ZA'AKHIR"
+        ],
+        "analysis": "The race is dominated by MN HATTAN and COLT AL MAMUN MONLAU, who stand out with their superior ratings. However, the presence of several maidens and varying weights could introduce unpredictability, making ZA'AKHIR a strong contender for the minor places."
+      }
+    },
+    {
+      "race": 4,
+      "name": "Masar Almajd Mile",
+      "horses_count": 13,
+      "prediction": {
+        "nap": {
+          "horse": "ES SUDANI",
+          "reason": "Top-rated horse with strong local trainer and jockey combination."
+        },
+        "next_best": {
+          "horse": "MAAHIR",
+          "reason": "Highly-rated French horse with a solid draw and proven form."
+        },
+        "each_way": {
+          "horse": "JALLAAB",
+          "reason": "Slightly lower weight and consistent European form for a placing."
+        },
+        "top_3": [
+          "ES SUDANI",
+          "MAAHIR",
+          "JALLAAB"
+        ],
+        "analysis": "A competitive mile race with top-rated horses ES SUDANI and MAAHIR leading the charge, while JALLAAB could spoil for a place with his weight advantage."
+      }
+    },
+    {
+      "race": 5,
+      "name": "Darb Al Reeh Sprint",
+      "horses_count": 12,
+      "prediction": {
+        "nap": {
+          "horse": "AF MAN'OOT",
+          "reason": "Highest rating with a strong jockey-trainer combination and favorable draw."
+        },
+        "next_best": {
+          "horse": "AF NAFITH",
+          "reason": "Solid rating and weight advantage with a capable jockey."
+        },
+        "each_way": {
+          "horse": "MAGIC TOUCH",
+          "reason": "Competitive rating and lightweight, capable of finishing in the top three."
+        },
+        "top_3": [
+          "AF MAN'OOT",
+          "AF NAFITH",
+          "MAGIC TOUCH"
+        ],
+        "analysis": "AF MAN'OOT is the clear favorite with the highest rating and a strong team. AF NAFITH and MAGIC TOUCH will challenge for the minor places, making it a competitive sprint."
+      }
+    },
+    {
+      "race": 6,
+      "name": "The Flash of Sand Handicap",
+      "horses_count": 7,
+      "prediction": {
+        "nap": {
+          "horse": "ZAPPATA",
+          "reason": "Strong jockey-trainer combination with good draw advantage."
+        },
+        "next_best": {
+          "horse": "HOT PROPERTY",
+          "reason": "Consistent trainer form and a proven jockey in good form."
+        },
+        "each_way": {
+          "horse": "LEMURIAN",
+          "reason": "Well-drawn and trainer Doug Watson has a strong record in similar races."
+        },
+        "top_3": [
+          "ZAPPATA",
+          "HOT PROPERTY",
+          "LEMURIAN"
+        ],
+        "analysis": "A highly competitive handicap with evenly matched horses, but ZAPPATA stands out due to his draw advantage and the jockey-trainer pairing. HOT PROPERTY and LEMURIAN are strong contenders for the minor places."
+      }
+    },
+    {
+      "race": 7,
+      "name": "The Majlis Mile",
+      "horses_count": 2,
+      "prediction": {
+        "nap": {
+          "horse": "PIZARRO",
+          "reason": "Superior rating and proven form under top trainer Bhupat Seemar."
+        },
+        "next_best": {
+          "horse": "GOLDAMAL",
+          "reason": "Debutant with potential, drawn well in a competitive field."
+        },
+        "each_way": {
+          "horse": "GOLDAMAL",
+          "reason": "Debutant with upside and favorable draw for a strong finish."
+        },
+        "top_3": [
+          "PIZARRO",
+          "GOLDAMAL",
+          "PIZARRO"
+        ],
+        "analysis": "Pizarro appears the clear favorite with a rating advantage and proven form, while Goldamal’s debut potential could make him a dangerous outsider. The race hinges on Pizarro’s ability to capitalize on his rating edge over a promising but untested field."
+      }
+    }
+  ]
+}
