@@ -49,7 +49,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "9.0.2",
+    "version": "9.1.0",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
@@ -210,22 +210,114 @@ HORSE_PERFORMANCE_HISTORY = {
 
 # ========== Real Data Fetching from URL ==========
 def fetch_race_data_from_url(url: str) -> dict:
-    """Fetch race data from URL using requests"""
+    """Fetch race data from URL using multiple methods"""
+    
+    # Method 1: Direct request with enhanced headers
+    result = fetch_direct(url)
+    if result.get('success'):
+        return result
+    
+    # Method 2: ScrapingBee API (if configured)
+    scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    if scrapingbee_key:
+        result = fetch_via_scrapingbee(url, scrapingbee_key)
+        if result.get('success'):
+            return result
+    
+    # Method 3: ScraperAPI (if configured)
+    scraperapi_key = os.environ.get('SCRAPERAPI_KEY', '')
+    if scraperapi_key:
+        result = fetch_via_scraperapi(url, scraperapi_key)
+        if result.get('success'):
+            return result
+    
+    # Return error if all methods failed
+    return {
+        "success": False, 
+        "error": "Unable to fetch data. The site may be protected. Try using a UAE race link from emiratesracing.com or configure ScrapingBee API key."
+    }
+
+
+def fetch_direct(url: str) -> dict:
+    """Direct fetch with enhanced headers"""
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
         }
         
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
+        session = requests.Session()
+        response = session.get(url, headers=headers, timeout=30, allow_redirects=True)
         
-        return {"success": True, "html": response.text, "url": url}
-        
+        if response.status_code == 200:
+            return {"success": True, "html": response.text, "url": url, "method": "direct"}
+        elif response.status_code == 406 or response.status_code == 403:
+            logger.warning(f"Direct fetch blocked with status {response.status_code}")
+            return {"success": False, "error": f"Blocked with status {response.status_code}"}
+        else:
+            return {"success": False, "error": f"HTTP status {response.status_code}"}
+            
     except Exception as e:
-        logger.error(f"Error fetching URL {url}: {e}")
+        logger.error(f"Direct fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def fetch_via_scrapingbee(url: str, api_key: str) -> dict:
+    """Fetch via ScrapingBee API"""
+    try:
+        api_url = "https://app.scrapingbee.com/api/v1/"
+        params = {
+            'api_key': api_key,
+            'url': url,
+            'render_js': 'false',
+            'premium_proxy': 'true',  # Use premium proxies for protected sites
+        }
+        
+        response = requests.get(api_url, params=params, timeout=60)
+        
+        if response.status_code == 200:
+            return {"success": True, "html": response.text, "url": url, "method": "scrapingbee"}
+        else:
+            logger.warning(f"ScrapingBee error: {response.status_code}")
+            return {"success": False, "error": f"ScrapingBee error: {response.status_code}"}
+            
+    except Exception as e:
+        logger.error(f"ScrapingBee fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def fetch_via_scraperapi(url: str, api_key: str) -> dict:
+    """Fetch via ScraperAPI"""
+    try:
+        api_url = "http://api.scraperapi.com/"
+        params = {
+            'api_key': api_key,
+            'url': url,
+            'keep_headers': 'true',
+        }
+        
+        response = requests.get(api_url, params=params, timeout=60)
+        
+        if response.status_code == 200:
+            return {"success": True, "html": response.text, "url": url, "method": "scraperapi"}
+        else:
+            logger.warning(f"ScraperAPI error: {response.status_code}")
+            return {"success": False, "error": f"ScraperAPI error: {response.status_code}"}
+            
+    except Exception as e:
+        logger.error(f"ScraperAPI fetch error: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -278,6 +370,223 @@ def parse_emiratesracing_html(html: str) -> dict:
         logger.error(f"Error parsing HTML: {e}")
     
     return {"races": races}
+
+
+def parse_attheraces_html(html: str) -> dict:
+    """Parse HTML from attheraces.com"""
+    races = []
+    
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Find race cards
+        race_cards = soup.find_all(['div', 'section'], class_=re.compile(r'race|card|entry', re.I))
+        
+        race_num = 1
+        for card in race_cards:
+            horses = []
+            
+            # Find horse entries
+            horse_rows = card.find_all(['tr', 'div', 'li'], class_=re.compile(r'horse|runner|entry', re.I))
+            
+            for i, row in enumerate(horse_rows):
+                text = row.get_text(separator=' ', strip=True)
+                
+                # Extract horse name
+                name_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
+                if name_match:
+                    # Extract number
+                    num_match = re.search(r'^\s*(\d+)', text)
+                    number = num_match.group(1) if num_match else str(i + 1)
+                    
+                    # Extract jockey
+                    jockey_match = re.search(r'(?:jockey|j)\s*:?\s*([A-Za-z\s]+?)(?:\s*(?:trainer|t|form|$))', text, re.I)
+                    jockey = jockey_match.group(1).strip() if jockey_match else '-'
+                    
+                    horses.append({
+                        'number': number,
+                        'draw': number,
+                        'name': name_match.group(1),
+                        'jockey': jockey,
+                        'rating': 70,
+                        'trainer': '-',
+                        'weight': 57,
+                        'is_nr': 'non runner' in text.lower() or 'nr' in text.lower()
+                    })
+            
+            if horses:
+                races.append({
+                    'race_number': race_num,
+                    'race_name': f"الشوط {race_num}",
+                    'horses': horses
+                })
+                race_num += 1
+        
+        # Alternative: try table parsing
+        if not races:
+            tables = soup.find_all('table')
+            for i, table in enumerate(tables):
+                horses = []
+                rows = table.find_all('tr')
+                
+                for j, row in enumerate(rows[1:], 1):  # Skip header
+                    cells = row.find_all(['td', 'th'])
+                    if cells:
+                        text = row.get_text(separator=' ', strip=True)
+                        name_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
+                        
+                        if name_match:
+                            horses.append({
+                                'number': str(j),
+                                'draw': str(j),
+                                'name': name_match.group(1),
+                                'jockey': '-',
+                                'rating': 70,
+                                'trainer': '-',
+                                'weight': 57,
+                                'is_nr': 'non runner' in text.lower()
+                            })
+                
+                if horses:
+                    races.append({
+                        'race_number': i + 1,
+                        'race_name': f"الشوط {i + 1}",
+                        'horses': horses
+                    })
+                    
+    except Exception as e:
+        logger.error(f"Error parsing attheraces HTML: {e}")
+    
+    return {"races": races}
+
+
+def parse_racingpost_html(html: str) -> dict:
+    """Parse HTML from racingpost.com"""
+    races = []
+    
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # RacingPost uses specific classes
+        race_containers = soup.find_all(['div', 'section'], class_=re.compile(r'race|card', re.I))
+        
+        race_num = 1
+        for container in race_containers:
+            horses = []
+            
+            # Find runner entries
+            runners = container.find_all(['div', 'tr', 'li'], class_=re.compile(r'runner|horse|entry', re.I))
+            
+            for i, runner in enumerate(runners):
+                text = runner.get_text(separator=' ', strip=True)
+                
+                # Extract name
+                name_elem = runner.find(['a', 'span', 'h3', 'h4'], class_=re.compile(r'name|horse', re.I))
+                name = name_elem.get_text(strip=True) if name_elem else None
+                
+                if not name:
+                    name_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
+                    name = name_match.group(1) if name_match else f"Horse {i+1}"
+                
+                # Extract number
+                num_elem = runner.find(['span', 'div'], class_=re.compile(r'number|cloth', re.I))
+                number = num_elem.get_text(strip=True) if num_elem else str(i + 1)
+                
+                horses.append({
+                    'number': number,
+                    'draw': number,
+                    'name': name,
+                    'jockey': '-',
+                    'rating': 70,
+                    'trainer': '-',
+                    'weight': 57,
+                    'is_nr': 'non runner' in text.lower()
+                })
+            
+            if horses:
+                races.append({
+                    'race_number': race_num,
+                    'race_name': f"الشوط {race_num}",
+                    'horses': horses
+                })
+                race_num += 1
+                
+    except Exception as e:
+        logger.error(f"Error parsing racingpost HTML: {e}")
+    
+    return {"races": races}
+
+
+def parse_generic_html(html: str) -> dict:
+    """Generic HTML parser for unknown sites"""
+    races = []
+    
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Find all tables (most common structure)
+        tables = soup.find_all('table')
+        
+        for i, table in enumerate(tables[:10]):  # Limit to 10 tables
+            horses = []
+            rows = table.find_all('tr')
+            
+            for j, row in enumerate(rows):
+                text = row.get_text(separator=' ', strip=True)
+                
+                # Skip headers
+                if re.search(r'(horse|jockey|trainer|position)', text, re.I) and j == 0:
+                    continue
+                
+                # Look for horse names (capitalized words)
+                names = re.findall(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
+                
+                for name in names:
+                    if len(name) > 3 and not name.lower() in ['the', 'and', 'for', 'race', 'time', 'date']:
+                        horses.append({
+                            'number': str(len(horses) + 1),
+                            'draw': str(len(horses) + 1),
+                            'name': name,
+                            'jockey': '-',
+                            'rating': 70,
+                            'trainer': '-',
+                            'weight': 57,
+                            'is_nr': 'non runner' in text.lower()
+                        })
+                        break  # One horse per row
+            
+            if len(horses) >= 2:  # Valid race should have at least 2 horses
+                races.append({
+                    'race_number': len(races) + 1,
+                    'race_name': f"الشوط {len(races) + 1}",
+                    'horses': horses
+                })
+                
+    except Exception as e:
+        logger.error(f"Error in generic parser: {e}")
+    
+    return {"races": races}
+
+
+def smart_parse_html(html: str, url: str) -> dict:
+    """Smart parser that selects the right parser based on URL"""
+    url_lower = url.lower()
+    
+    if 'emiratesracing' in url_lower:
+        return parse_emiratesracing_html(html)
+    elif 'attheraces' in url_lower:
+        parsed = parse_attheraces_html(html)
+        if parsed.get('races'):
+            return parsed
+        return parse_generic_html(html)
+    elif 'racingpost' in url_lower:
+        parsed = parse_racingpost_html(html)
+        if parsed.get('races'):
+            return parsed
+        return parse_generic_html(html)
+    else:
+        # Try generic parser
+        return parse_generic_html(html)
 
 
 def extract_field(text: str, field_name: str) -> str:
@@ -957,8 +1266,8 @@ def fetch_race():
         if not result.get('success'):
             return jsonify({"success": False, "error": result.get('error', 'Failed to fetch')})
         
-        # Parse HTML
-        parsed = parse_emiratesracing_html(result.get('html', ''))
+        # Parse HTML using smart parser
+        parsed = smart_parse_html(result.get('html', ''), url)
         
         # Generate predictions
         predictions = generate_predictions_from_real_data(parsed.get('races', []), num_predictions)
