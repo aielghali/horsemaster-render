@@ -49,7 +49,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "9.1.1",
+    "version": "9.1.2",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
@@ -1680,11 +1680,25 @@ def render_html_interface():
                     '<a href="' + data.live_stream.url + '" target="_blank" class="stream-link">مشاهدة البث</a>';
             }
             
-            // Races
+            // Races - مع حماية من عدم وجود البيانات
+            const races = Array.isArray(data.races) ? data.races : [];
+            
+            if (races.length === 0) {
+                document.getElementById('races').innerHTML = 
+                    '<div style="text-align:center;padding:30px;color:#ffd700;">' +
+                    '<h3>⚠️ لم يتم العثور على بيانات سباقات</h3>' +
+                    '<p>تأكد من صحة الرابط أو جرب رابط آخر من emiratesracing.com</p>' +
+                    '</div>';
+                document.getElementById('results').style.display = 'block';
+                return;
+            }
+            
             let racesHtml = '';
-            for (const race of data.races) {
+            for (const race of races) {
+                const horses = Array.isArray(race.horses) ? race.horses : [];
                 let horsesRows = '';
-                for (const h of race.horses) {
+                
+                for (const h of horses) {
                     const badge = h.position === 1 ? '🥇' : h.position === 2 ? '🥈' : h.position === 3 ? '🥉' : '';
                     horsesRows += '<tr>' +
                         '<td>' + badge + ' ' + h.position + '</td>' +
@@ -1699,9 +1713,14 @@ def render_html_interface():
                         '</tr>';
                 }
                 
+                const raceName = race.name || race.race_name || ('الشوط ' + (race.race_number || ''));
+                const raceTime = race.time || '-';
+                const raceDistance = race.distance || '-';
+                const raceSurface = race.surface || '-';
+                
                 racesHtml += '<div class="race-card">' +
-                    '<div class="race-header"><h3>🏇 ' + race.name + '</h3>' +
-                    '<span>' + race.time + ' | ' + race.distance + 'm | ' + race.surface + '</span></div>' +
+                    '<div class="race-header"><h3>🏇 ' + raceName + '</h3>' +
+                    '<span>' + raceTime + ' | ' + raceDistance + 'm | ' + raceSurface + '</span></div>' +
                     '<div class="table-wrapper"><table>' +
                     '<tr><th>المركز</th><th>الرقم</th><th>البوابة</th><th>الحصان</th><th>الفارس</th><th>التصنيف</th><th>القوة</th><th>السرعة</th><th>%</th></tr>' +
                     horsesRows + '</table></div></div>';
