@@ -18,7 +18,6 @@ import os
 import re
 import json
 import smtplib
-import asyncio
 import sys
 import io
 from datetime import datetime, timedelta
@@ -50,7 +49,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "9.0.1",
+    "version": "9.0.2",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
@@ -209,32 +208,21 @@ HORSE_PERFORMANCE_HISTORY = {
 }
 
 
-# ========== NEW: Real Data Fetching from URL ==========
-async def fetch_race_data_from_url(url: str) -> dict:
-    """Fetch race data from URL using Z-AI SDK"""
+# ========== Real Data Fetching from URL ==========
+def fetch_race_data_from_url(url: str) -> dict:
+    """Fetch race data from URL using requests"""
     try:
-        import importlib.util
-        spec = importlib.util.find_spec('z_ai_web_dev_sdk')
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive',
+        }
         
-        if spec is None:
-            logger.warning("Z-AI SDK not available")
-            return {"success": False, "error": "SDK not available"}
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
         
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        
-        create_func = getattr(module, 'create', None)
-        if create_func is None:
-            return {"success": False, "error": "SDK create function not found"}
-        
-        zai = await create_func()
-        result = await zai.functions.invoke('page_reader', {'url': url})
-        
-        if result and 'data' in result:
-            html = result['data'].get('html', '')
-            return {"success": True, "html": html, "url": url}
-        
-        return {"success": False, "error": "No data returned"}
+        return {"success": True, "html": response.text, "url": url}
         
     except Exception as e:
         logger.error(f"Error fetching URL {url}: {e}")
@@ -964,10 +952,7 @@ def fetch_race():
         num_predictions = get_num_predictions_for_venue(url)
         
         # Fetch data
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(fetch_race_data_from_url(url))
-        loop.close()
+        result = fetch_race_data_from_url(url)
         
         if not result.get('success'):
             return jsonify({"success": False, "error": result.get('error', 'Failed to fetch')})
