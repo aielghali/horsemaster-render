@@ -49,7 +49,7 @@ CORS(app)
 
 # ========== Configuration ==========
 CONFIG = {
-    "version": "9.1.2",
+    "version": "9.1.3",
     "email": {
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
@@ -234,7 +234,15 @@ def fetch_race_data_from_url(url: str) -> dict:
     # Return error if all methods failed
     return {
         "success": False, 
-        "error": "Unable to fetch data. The site may be protected. Try using a UAE race link from emiratesracing.com or configure ScrapingBee API key."
+        "error": """Unable to fetch race data from this URL.
+
+The site uses JavaScript to load data dynamically.
+
+Solutions:
+1. Try a direct race URL: emiratesracing.com/racecard/DATE/RACE_NUMBER/declarations
+2. Configure ScrapingBee API key (SCRAPINGBEE_API_KEY) for protected sites
+
+Get free ScrapingBee key: scrapingbee.com (1,000 requests/month free)"""
     }
 
 
